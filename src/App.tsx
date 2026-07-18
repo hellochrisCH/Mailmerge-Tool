@@ -519,167 +519,189 @@ function App() {
     }
   }
 
-  // Sending Loop logic
+  // Highly robust sequential sending loop
   useEffect(() => {
     if (!isSending || isPaused) return
 
-    // Check if we finished
-    if (currentIndex >= members.length) {
-      setIsSending(false)
-      addLog(`Campaign completed! Sent: ${stats.sent}, Failed: ${stats.failed}.`, 'success')
+    let active = true
 
-      // Append campaign to History
-      const newHistoryEntry: CampaignRun = {
-        id: Math.random().toString(36).substring(2, 9),
-        timestamp: new Date().toLocaleString('de-CH'),
-        subject: subject,
-        isHtml: isHtml,
-        sendMethod: sendMethod,
-        stats: {
-          total: stats.total,
-          sent: stats.sent,
-          failed: stats.failed
-        }
-      }
-      setCampaignHistory(prev => [newHistoryEntry, ...prev])
-      return
-    }
+    const runCampaign = async () => {
+      let index = currentIndex
 
-    const currentMember = members[currentIndex]
-    const timeString = new Date().toLocaleTimeString('de-CH')
-    
-    sendTimerRef.current = setTimeout(async () => {
-      // 1. Simulated Relay
-      if (sendMethod === 'simulated') {
-        const isSuccess = Math.random() > 0.08
-        
-        setMembers(prev => prev.map((m, idx) => {
-          if (idx === currentIndex) {
-            return {
-              ...m,
-              status: isSuccess ? 'success' : 'error',
-              logDetails: isSuccess ? 'Sent successfully via mock SMTP gateway' : 'Failed: SMTP connection timed out',
-              timestamp: timeString
-            }
-          }
-          return m
-        }))
+      while (index < members.length && active) {
+        const currentMember = members[index]
+        const timeString = new Date().toLocaleTimeString('de-CH')
 
-        if (isSuccess) {
-          addLog(`✓ Email sent to ${currentMember.first_name} <${currentMember.email}>`, 'success')
-        } else {
-          addLog(`✗ Failed to send to ${currentMember.first_name} <${currentMember.email}> (SMTP Timeout)`, 'error')
-        }
-        
-        setCurrentIndex(prev => prev + 1)
-      } 
-      
-      // 2. Native Mailto Trigger
-      else if (sendMethod === 'mailto') {
-        let bodyText = renderTemplate(body, currentMember)
-        if (isHtml) {
-          bodyText = bodyText.replace(/<[^>]*>/g, '')
-        }
-        
-        const mailSubject = encodeURIComponent(renderTemplate(subject, currentMember))
-        const mailBody = encodeURIComponent(bodyText)
-        const mailtoUrl = `mailto:${currentMember.email}?subject=${mailSubject}&body=${mailBody}`
-        
-        window.open(mailtoUrl, '_blank')
-        
-        setMembers(prev => prev.map((m, idx) => {
-          if (idx === currentIndex) {
-            return {
-              ...m,
-              status: 'success',
-              logDetails: isHtml ? 'Mailto triggered (HTML formatting stripped)' : 'Mailto compose window triggered',
-              timestamp: timeString
-            }
-          }
-          return m
-        }))
-        
-        addLog(`Opened mailto composer for ${currentMember.first_name} <${currentMember.email}>`, 'success')
-        setCurrentIndex(prev => prev + 1)
-      }
+        // Dispatch status info log
+        addLog(`Sending to ${currentMember.first_name} <${currentMember.email}> (${index + 1}/${members.length})...`, 'info')
 
-      // 3. Echter SMTP-Versand via Google/Outlook/Custom Server
-      else if (sendMethod === 'smtp') {
-        try {
-          const response = await fetch('http://localhost:3001/api/send-email', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              senderName: senderName,
-              senderEmail: senderEmail || smtpUser,
-              smtpUser: smtpUser,
-              smtpPass: smtpPass,
-              smtpHost: smtpHost,
-              smtpPort: smtpPort,
-              smtpSecure: smtpSecure,
-              recipientEmail: currentMember.email,
-              subject: renderTemplate(subject, currentMember),
-              body: renderTemplate(body, currentMember),
-              isHtml: isHtml
-            })
-          });
+        // Wait for the configured inter-email delay
+        await new Promise(resolve => {
+          sendTimerRef.current = setTimeout(resolve, delayMs)
+        })
 
-          const data = await response.json();
+        if (!active) break
 
-          if (data.success) {
-            setMembers(prev => prev.map((m, idx) => {
-              if (idx === currentIndex) {
-                return { 
-                  ...m, 
-                  status: 'success', 
-                  logDetails: `E-Mail erfolgreich gesendet via SMTP (${smtpHost}).`,
-                  timestamp: timeString
-                }
-              }
-              return m
-            }));
-            addLog(`✓ E-Mail erfolgreich an ${currentMember.first_name} <${currentMember.email}> gesendet.`, 'success');
-          } else {
-            setMembers(prev => prev.map((m, idx) => {
-              if (idx === currentIndex) {
-                return { 
-                  ...m, 
-                  status: 'error', 
-                  logDetails: data.error || 'SMTP Fehler',
-                  timestamp: timeString
-                }
-              }
-              return m
-            }));
-            addLog(`✗ Fehler beim Senden an ${currentMember.first_name} <${currentMember.email}>: ${data.error}`, 'error');
-          }
-        } catch (err: any) {
+        // Perform the dispatch action depending on the selected strategy
+        if (sendMethod === 'simulated') {
+          const isSuccess = Math.random() > 0.08
+          
           setMembers(prev => prev.map((m, idx) => {
-            if (idx === currentIndex) {
-              return { 
-                ...m, 
-                status: 'error', 
-                logDetails: 'Lokaler Server antwortet nicht.',
+            if (idx === index) {
+              return {
+                ...m,
+                status: isSuccess ? 'success' : 'error',
+                logDetails: isSuccess ? 'Sent successfully via mock SMTP gateway' : 'Failed: SMTP connection timed out',
                 timestamp: timeString
               }
             }
             return m
-          }));
-          addLog(`✗ Verbindungsfehler: Der lokale SMTP-Server antwortet nicht. Bitte prüfen Sie, ob er läuft.`, 'error');
+          }))
+
+          if (isSuccess) {
+            addLog(`✓ Email sent to ${currentMember.first_name} <${currentMember.email}>`, 'success')
+          } else {
+            addLog(`✗ Failed to send to ${currentMember.first_name} <${currentMember.email}> (SMTP Timeout)`, 'error')
+          }
+        } 
+        
+        else if (sendMethod === 'mailto') {
+          let bodyText = renderTemplate(body, currentMember)
+          if (isHtml) {
+            bodyText = bodyText.replace(/<[^>]*>/g, '')
+          }
+          
+          const mailSubject = encodeURIComponent(renderTemplate(subject, currentMember))
+          const mailBody = encodeURIComponent(bodyText)
+          const mailtoUrl = `mailto:${currentMember.email}?subject=${mailSubject}&body=${mailBody}`
+          
+          window.open(mailtoUrl, '_blank')
+          
+          setMembers(prev => prev.map((m, idx) => {
+            if (idx === index) {
+              return {
+                ...m,
+                status: 'success',
+                logDetails: isHtml ? 'Mailto triggered (HTML formatting stripped)' : 'Mailto compose window triggered',
+                timestamp: timeString
+              }
+            }
+            return m
+          }))
+          
+          addLog(`Opened mailto composer for ${currentMember.first_name} <${currentMember.email}>`, 'success')
+        } 
+        
+        else if (sendMethod === 'smtp') {
+          try {
+            const response = await fetch('http://localhost:3001/api/send-email', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                senderName,
+                senderEmail: senderEmail || smtpUser,
+                smtpUser,
+                smtpPass,
+                smtpHost,
+                smtpPort,
+                smtpSecure,
+                recipientEmail: currentMember.email,
+                subject: renderTemplate(subject, currentMember),
+                body: renderTemplate(body, currentMember),
+                isHtml
+              })
+            })
+
+            const data = await response.json()
+
+            if (data.success) {
+              setMembers(prev => prev.map((m, idx) => {
+                if (idx === index) {
+                  return { 
+                    ...m, 
+                    status: 'success', 
+                    logDetails: `E-Mail erfolgreich gesendet via SMTP (${smtpHost}).`,
+                    timestamp: timeString
+                  }
+                }
+                return m
+              }))
+              addLog(`✓ E-Mail erfolgreich an ${currentMember.first_name} <${currentMember.email}> gesendet.`, 'success')
+            } else {
+              setMembers(prev => prev.map((m, idx) => {
+                if (idx === index) {
+                  return { 
+                    ...m, 
+                    status: 'error', 
+                    logDetails: data.error || 'SMTP Fehler',
+                    timestamp: timeString
+                  }
+                }
+                return m
+              }))
+              addLog(`✗ Fehler beim Senden an ${currentMember.first_name} <${currentMember.email}>: ${data.error}`, 'error')
+            }
+          } catch (err: any) {
+            setMembers(prev => prev.map((m, idx) => {
+              if (idx === index) {
+                return { 
+                  ...m, 
+                  status: 'error', 
+                  logDetails: 'Lokaler Server antwortet nicht.',
+                  timestamp: timeString
+                }
+              }
+              return m
+            }))
+            addLog(`✗ Verbindungsfehler: Der lokale SMTP-Server antwortet nicht. Bitte prüfen Sie, ob er läuft.`, 'error')
+          }
         }
 
-        setCurrentIndex(prev => prev + 1)
+        // Increment index internally and update state
+        index++
+        setCurrentIndex(index)
       }
-    }, delayMs)
+
+      // If we finished the loop naturally without interruption
+      if (active && index >= members.length) {
+        setIsSending(false)
+        addLog(`Campaign completed!`, 'success')
+
+        // Fetch the absolute latest members array to get final counts
+        setMembers(latestMembers => {
+          const total = latestMembers.length
+          const sent = latestMembers.filter(m => m.status === 'success').length
+          const failed = latestMembers.filter(m => m.status === 'error').length
+          
+          const newHistoryEntry: CampaignRun = {
+            id: Math.random().toString(36).substring(2, 9),
+            timestamp: new Date().toLocaleString('de-CH'),
+            subject: subject,
+            isHtml: isHtml,
+            sendMethod: sendMethod,
+            stats: {
+              total,
+              sent,
+              failed
+            }
+          }
+          setCampaignHistory(prev => [newHistoryEntry, ...prev])
+          return latestMembers
+        })
+      }
+    }
+
+    runCampaign()
 
     return () => {
+      active = false
       if (sendTimerRef.current) {
         clearTimeout(sendTimerRef.current)
       }
     }
-  }, [isSending, isPaused, currentIndex, members, sendMethod, subject, body, delayMs, smtpUser, smtpPass, smtpHost, smtpPort, smtpSecure, senderName, senderEmail, isHtml, stats])
+  }, [isSending, isPaused]) // Only run/cleanup when campaign send status changes!
 
   // Bound index check for preview panel
   const activePreviewMember = members[previewIndex] || members[0] || null
@@ -793,7 +815,7 @@ function App() {
               {campaignHistory.length > 0 && (
                 <button 
                   onClick={clearCampaignHistory}
-                  style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'pointer' }}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '0.75rem', cursor: 'pointer' }}
                 >
                   Clear
                 </button>
