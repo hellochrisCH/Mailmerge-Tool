@@ -686,7 +686,7 @@ function App() {
       <header className="app-header">
         <div className="logo-section">
           <div className="logo-icon">M</div>
-          <span className="app-title">MergeFlow</span>
+          <span className="app-title">MailMerge</span>
         </div>
         <div className="connection-badge">
           <div className="pulse-dot" style={{ backgroundColor: backendStatus === 'active' ? 'var(--color-success)' : 'var(--color-error)', boxShadow: backendStatus === 'active' ? '0 0 8px var(--color-success)' : '0 0 8px var(--color-error)' }}></div>

@@ -90,5 +90,5 @@ app.post('/api/send-email', async (req, res) => {
 
 // Start the express server
 app.listen(PORT, () => {
-  console.log(`MergeFlow Backend Server running on http://localhost:${PORT}`);
+  console.log(`MailMerge Backend Server running on http://localhost:${PORT}`);
 });

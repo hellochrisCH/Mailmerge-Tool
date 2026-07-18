@@ -1,6 +1,6 @@
-# ✉️ MergeFlow — Mailmerge Tool
+# ✉️ MailMerge — Mailmerge Tool
 
-MergeFlow ist ein modernes, benutzerfreundliches und sicheres E-Mail-Mailmerge-Dashboard für Vereine und Teams. Es ermöglicht das Verfassen, Vorschauen und Versenden von personalisierten E-Mails (sowohl als Klartext als auch in formatiertem HTML) direkt über Ihren eigenen E-Mail-Provider (z. B. Google Gmail oder Outlook/Office 365).
+MailMerge ist ein modernes, benutzerfreundliches und sicheres E-Mail-Mailmerge-Dashboard für Vereine und Teams. Es ermöglicht das Verfassen, Vorschauen und Versenden von personalisierten E-Mails (sowohl als Klartext als auch in formatiertem HTML) direkt über Google Gmail.
 
 ---
 
@@ -9,7 +9,7 @@ MergeFlow ist ein modernes, benutzerfreundliches und sicheres E-Mail-Mailmerge-D
 - **👥 Dynamische Empfängerdatenbank:** Importieren Sie Mitglieder über CSV (Drag-and-Drop / Copy-Paste) oder fügen Sie einzelne Zeilen manuell hinzu.
 - **✉️ HTML & Text Template-Builder:** Erstellen Sie Vorlagen mit personalisierten Platzhaltern wie `{{first_name}}`, `{{last_name}}`, `{{role}}` oder `{{custom}}`.
 - **🖥️ Sandboxed Live-Vorschau:** Betrachten Sie die fertig gerenderten E-Mails für jeden Empfänger in einem geschützten Vorschau-Iframe, bevor Sie auf Senden klicken.
-- **🔐 Lokale SMTP-Bridge:** Versenden Sie E-Mails direkt über Ihren eigenen Postausgang. Ihre Passwörter und E-Mail-Adressen werden **ausschließlich lokal** in Ihrem Browser (im `localStorage`) gespeichert und verlassen niemals Ihren Rechner.
+- **🔐 Lokale SMTP-Bridge:** Versenden Sie E-Mails direkt über Ihren eigenen Google Postausgang. Ihre Passwörter und E-Mail-Adressen werden **ausschließlich lokal** in Ihrem Browser (im `localStorage`) gespeichert und verlassen niemals Ihren Rechner.
 - **📊 Live Dispatch-Logs:** Verfolgen Sie den Versandfortschritt in Echtzeit mit Erfolgs- und Fehlerberichten und einem visualisierten Fortschrittsbalken.
 
 ---
@@ -34,8 +34,8 @@ Das Projekt ist in zwei Komponenten aufgeteilt, die lokal auf Ihrem Computer aus
               │ Nodemailer (SMTP Verbindung)
               ▼
   ┌────────────────────────────────────────────────────────┐
-  │               Google / Outlook SMTP Server             │
-  │        (smtp.gmail.com oder smtp.office365.com)        │
+  │                   Google SMTP Server                   │
+  │                    (smtp.gmail.com)                    │
   └────────────────────────────────────────────────────────┘
 ```
 
@@ -69,16 +69,11 @@ Das Backend läuft auf Port **3001** und verarbeitet den sicheren Mailversand.
 
 ## ⚙️ SMTP-Verbindung einrichten
 
-### A. Microsoft Outlook / Office 365 (z.B. `@procap.ch`)
-1. Wählen Sie im Tab **3. System Config** die Option **Custom / Google / Outlook SMTP Bridge**.
-2. Klicken Sie auf den Button **Outlook Preset**. Dadurch werden Host (`smtp.office365.com`), Port (`587`) und Verbindungstyp (`STARTTLS`) automatisch eingetragen.
-3. Tragen Sie Ihre E-Mail-Adresse als Benutzernamen ein.
-4. **Wichtig:** Wenn für Ihre Adresse die Zwei-Faktor-Authentifizierung (MFA) aktiv ist, müssen Sie im Microsoft 365 Portal ein **App-Passwort** erstellen. Verwenden Sie dieses App-Passwort als Kennwort in der App.
-
-### B. Google Gmail
-1. Klicken Sie im Tab **System Config** auf **Gmail Preset**. (Host: `smtp.gmail.com`, Port: `465`, Verbindungstyp: `SSL / TLS`).
-2. Tragen Sie Ihre Google-E-Mail-Adresse ein.
-3. **Wichtig:** Erstellen Sie in Ihrem Google-Konto ein **App-Passwort** (Zwei-Faktor-Authentifizierung erforderlich) und tragen Sie dieses als Passwort ein. Normalen Google-Passwörter werden blockiert.
+### Google Gmail SMTP Bridge
+1. Aktivieren Sie die Zwei-Faktor-Authentifizierung (2FA) in Ihrem Google-Konto.
+2. Erstellen Sie unter **Sicherheit > App-Passwörter** ein neues 16-stelliges App-Passwort für die Anwendung.
+3. Tragen Sie im Tab **3. System Config** Ihre Google-E-Mail-Adresse und das generierte App-Passwort ein.
+4. Schalten Sie die *Delivery Strategy* auf **Custom / Google / Outlook SMTP Bridge**.
 
 ---
 
