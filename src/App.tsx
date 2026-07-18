@@ -10,6 +10,7 @@ interface Member {
   custom: string
   status: 'pending' | 'success' | 'error'
   logDetails?: string
+  timestamp?: string
 }
 
 interface LogMessage {
@@ -17,6 +18,19 @@ interface LogMessage {
   timestamp: string
   message: string
   type: 'info' | 'success' | 'error'
+}
+
+interface CampaignRun {
+  id: string
+  timestamp: string
+  subject: string
+  isHtml: boolean
+  sendMethod: 'simulated' | 'mailto' | 'smtp'
+  stats: {
+    total: number
+    sent: number
+    failed: number
+  }
 }
 
 const DEFAULT_MEMBERS: Member[] = [
@@ -94,6 +108,12 @@ function App() {
     const saved = localStorage.getItem('mf_smtpsecure')
     return saved === null ? true : saved === 'true'
   })
+
+  // Campaign History State - persistent via localStorage
+  const [campaignHistory, setCampaignHistory] = useState<CampaignRun[]>(() => {
+    const saved = localStorage.getItem('mf_campaign_history')
+    return saved ? JSON.parse(saved) : []
+  })
   
   const [backendStatus, setBackendStatus] = useState<'checking' | 'active' | 'offline'>('checking')
 
@@ -158,6 +178,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem('mf_smtpsecure', String(smtpSecure))
   }, [smtpSecure])
+
+  useEffect(() => {
+    localStorage.setItem('mf_campaign_history', JSON.stringify(campaignHistory))
+  }, [campaignHistory])
 
   // Validate backend health status
   useEffect(() => {
@@ -450,7 +474,7 @@ function App() {
     }
 
     if (!isPaused) {
-      setMembers(prev => prev.map(m => ({ ...m, status: 'pending', logDetails: undefined })))
+      setMembers(prev => prev.map(m => ({ ...m, status: 'pending', logDetails: undefined, timestamp: undefined })))
       setCurrentIndex(0)
       setLogs([])
       addLog(`Starting campaign "${subject.substring(0, 30)}..." to ${members.length} recipients`, 'info')
@@ -482,9 +506,17 @@ function App() {
       clearTimeout(sendTimerRef.current)
       sendTimerRef.current = null
     }
-    setMembers(prev => prev.map(m => ({ ...m, status: 'pending', logDetails: undefined })))
+    setMembers(prev => prev.map(m => ({ ...m, status: 'pending', logDetails: undefined, timestamp: undefined })))
     setLogs([])
     addLog('Campaign reset. All statuses set back to Pending.', 'info')
+  }
+
+  // Clear Campaign History
+  const clearCampaignHistory = () => {
+    if (confirm('Möchten Sie die Kampagnen-Historie wirklich löschen?')) {
+      setCampaignHistory([])
+      addLog('Kampagnen-Historie gelöscht.', 'info')
+    }
   }
 
   // Sending Loop logic
@@ -495,10 +527,26 @@ function App() {
     if (currentIndex >= members.length) {
       setIsSending(false)
       addLog(`Campaign completed! Sent: ${stats.sent}, Failed: ${stats.failed}.`, 'success')
+
+      // Append campaign to History
+      const newHistoryEntry: CampaignRun = {
+        id: Math.random().toString(36).substring(2, 9),
+        timestamp: new Date().toLocaleString('de-CH'),
+        subject: subject,
+        isHtml: isHtml,
+        sendMethod: sendMethod,
+        stats: {
+          total: stats.total,
+          sent: stats.sent,
+          failed: stats.failed
+        }
+      }
+      setCampaignHistory(prev => [newHistoryEntry, ...prev])
       return
     }
 
     const currentMember = members[currentIndex]
+    const timeString = new Date().toLocaleTimeString('de-CH')
     
     sendTimerRef.current = setTimeout(async () => {
       // 1. Simulated Relay
@@ -510,7 +558,8 @@ function App() {
             return {
               ...m,
               status: isSuccess ? 'success' : 'error',
-              logDetails: isSuccess ? 'Sent successfully via mock SMTP gateway' : 'Failed: SMTP connection timed out'
+              logDetails: isSuccess ? 'Sent successfully via mock SMTP gateway' : 'Failed: SMTP connection timed out',
+              timestamp: timeString
             }
           }
           return m
@@ -543,7 +592,8 @@ function App() {
             return {
               ...m,
               status: 'success',
-              logDetails: isHtml ? 'Mailto triggered (HTML formatting stripped)' : 'Mailto compose window triggered'
+              logDetails: isHtml ? 'Mailto triggered (HTML formatting stripped)' : 'Mailto compose window triggered',
+              timestamp: timeString
             }
           }
           return m
@@ -581,7 +631,12 @@ function App() {
           if (data.success) {
             setMembers(prev => prev.map((m, idx) => {
               if (idx === currentIndex) {
-                return { ...m, status: 'success', logDetails: `E-Mail erfolgreich gesendet via SMTP (${smtpHost}).` }
+                return { 
+                  ...m, 
+                  status: 'success', 
+                  logDetails: `E-Mail erfolgreich gesendet via SMTP (${smtpHost}).`,
+                  timestamp: timeString
+                }
               }
               return m
             }));
@@ -589,7 +644,12 @@ function App() {
           } else {
             setMembers(prev => prev.map((m, idx) => {
               if (idx === currentIndex) {
-                return { ...m, status: 'error', logDetails: data.error || 'SMTP Fehler' }
+                return { 
+                  ...m, 
+                  status: 'error', 
+                  logDetails: data.error || 'SMTP Fehler',
+                  timestamp: timeString
+                }
               }
               return m
             }));
@@ -598,7 +658,12 @@ function App() {
         } catch (err: any) {
           setMembers(prev => prev.map((m, idx) => {
             if (idx === currentIndex) {
-              return { ...m, status: 'error', logDetails: 'Lokaler Server antwortet nicht.' }
+              return { 
+                ...m, 
+                status: 'error', 
+                logDetails: 'Lokaler Server antwortet nicht.',
+                timestamp: timeString
+              }
             }
             return m
           }));
@@ -614,7 +679,7 @@ function App() {
         clearTimeout(sendTimerRef.current)
       }
     }
-  }, [isSending, isPaused, currentIndex, members, sendMethod, subject, body, delayMs, smtpUser, smtpPass, smtpHost, smtpPort, smtpSecure, senderName, senderEmail, isHtml])
+  }, [isSending, isPaused, currentIndex, members, sendMethod, subject, body, delayMs, smtpUser, smtpPass, smtpHost, smtpPort, smtpSecure, senderName, senderEmail, isHtml, stats])
 
   // Bound index check for preview panel
   const activePreviewMember = members[previewIndex] || members[0] || null
@@ -718,6 +783,45 @@ function App() {
               >
                 Reset Statuses
               </button>
+            </div>
+          </div>
+
+          {/* Campaign History section in sidebar */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <h3 className="section-title" style={{ marginBottom: 0 }}>Campaign History</h3>
+              {campaignHistory.length > 0 && (
+                <button 
+                  onClick={clearCampaignHistory}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'pointer' }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '180px', overflowY: 'auto' }}>
+              {campaignHistory.length === 0 ? (
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Keine vorherigen Läufe.</span>
+              ) : (
+                campaignHistory.map(run => (
+                  <div key={run.id} style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '0.5rem', fontSize: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
+                      <span>{run.timestamp}</span>
+                      <span className="role-tag" style={{ padding: '0.05rem 0.25rem', fontSize: '0.65rem' }}>
+                        {run.sendMethod.toUpperCase()} {run.isHtml ? 'HTML' : 'TXT'}
+                      </span>
+                    </div>
+                    <div style={{ color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {run.subject}
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.7rem' }}>
+                      <span>Total: {run.stats.total}</span>
+                      <span style={{ color: 'var(--color-success)' }}>Sent: {run.stats.sent}</span>
+                      <span style={{ color: 'var(--color-error)' }}>Failed: {run.stats.failed}</span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -927,14 +1031,15 @@ Bob,Johnson,bob@example.com,Treasurer,Joined 2023`}
                       <th>Email</th>
                       <th>Club Role</th>
                       <th>Info / Tag</th>
-                      <th>Status</th>
+                      <th>Last Dispatch Status</th>
+                      <th>Sent At</th>
                       <th style={{ textAlign: 'center' }}>Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredMembers.length === 0 ? (
                       <tr>
-                        <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
+                        <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
                           No members matching your query.
                         </td>
                       </tr>
@@ -995,6 +1100,9 @@ Bob,Johnson,bob@example.com,Treasurer,Joined 2023`}
                                     Pending (Edit)
                                   </span>
                                 </td>
+                                <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                  {member.timestamp || '-'}
+                                </td>
                                 <td style={{ textAlign: 'center' }}>
                                   <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
                                     <button 
@@ -1033,6 +1141,9 @@ Bob,Johnson,bob@example.com,Treasurer,Joined 2023`}
                                     {member.status === 'error' && '✗ Failed'}
                                     {member.status === 'pending' && 'Pending'}
                                   </span>
+                                </td>
+                                <td style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                                  {member.timestamp || '-'}
                                 </td>
                                 <td style={{ textAlign: 'center' }}>
                                   <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
