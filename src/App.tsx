@@ -52,6 +52,11 @@ function App() {
     return saved ? JSON.parse(saved) : DEFAULT_MEMBERS
   })
   
+  const membersRef = useRef(members)
+  useEffect(() => {
+    membersRef.current = members
+  }, [members])
+  
   const [searchQuery, setSearchQuery] = useState('')
   const [newMember, setNewMember] = useState({ first_name: '', last_name: '', email: '', role: 'General Member', custom: '' })
   
@@ -635,27 +640,25 @@ function App() {
         setIsSending(false)
         addLog(`Campaign completed!`, 'success')
 
-        // Fetch the absolute latest members array to get final counts
-        setMembers(latestMembers => {
-          const total = latestMembers.length
-          const sent = latestMembers.filter(m => m.status === 'success').length
-          const failed = latestMembers.filter(m => m.status === 'error').length
-          
-          const newHistoryEntry: CampaignRun = {
-            id: Math.random().toString(36).substring(2, 9),
-            timestamp: new Date().toLocaleString('de-CH'),
-            subject: subject,
-            isHtml: isHtml,
-            sendMethod: sendMethod,
-            stats: {
-              total,
-              sent,
-              failed
-            }
+        // Fetch the absolute latest members array to get final counts from the ref
+        const latestMembers = membersRef.current
+        const total = latestMembers.length
+        const sent = latestMembers.filter(m => m.status === 'success').length
+        const failed = latestMembers.filter(m => m.status === 'error').length
+        
+        const newHistoryEntry: CampaignRun = {
+          id: Math.random().toString(36).substring(2, 9),
+          timestamp: new Date().toLocaleString('de-CH'),
+          subject: subject,
+          isHtml: isHtml,
+          sendMethod: sendMethod,
+          stats: {
+            total,
+            sent,
+            failed
           }
-          setCampaignHistory(prev => [newHistoryEntry, ...prev])
-          return latestMembers
-        })
+        }
+        setCampaignHistory(prev => [newHistoryEntry, ...prev])
       }
     }
 
