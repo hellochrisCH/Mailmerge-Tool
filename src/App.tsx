@@ -497,11 +497,12 @@ function App() {
       let index = currentIndex
 
       while (index < members.length && active) {
-        const currentMember = members[index]
+        const targetIndex = index // Capture current loop index to prevent asynchronous closure race conditions
+        const currentMember = members[targetIndex]
         const timeString = new Date().toLocaleTimeString('de-CH')
 
         // Dispatch status info log
-        addLog(`Sending to ${currentMember.first_name} <${currentMember.email}> (${index + 1}/${members.length})...`, 'info')
+        addLog(`Sending to ${currentMember.first_name} <${currentMember.email}> (${targetIndex + 1}/${members.length})...`, 'info')
 
         // Wait for the configured inter-email delay
         await new Promise(resolve => {
@@ -515,7 +516,7 @@ function App() {
           const isSuccess = Math.random() > 0.08
           
           setMembers(prev => prev.map((m, idx) => {
-            if (idx === index) {
+            if (idx === targetIndex) {
               return {
                 ...m,
                 status: isSuccess ? 'success' : 'error',
@@ -546,7 +547,7 @@ function App() {
           window.open(mailtoUrl, '_blank')
           
           setMembers(prev => prev.map((m, idx) => {
-            if (idx === index) {
+            if (idx === targetIndex) {
               return {
                 ...m,
                 status: 'success',
@@ -583,7 +584,7 @@ function App() {
 
             if (data.success) {
               setMembers(prev => prev.map((m, idx) => {
-                if (idx === index) {
+                if (idx === targetIndex) {
                   return { 
                     ...m, 
                     status: 'success', 
@@ -596,7 +597,7 @@ function App() {
               addLog(`✓ E-Mail erfolgreich an ${currentMember.first_name} <${currentMember.email}> gesendet.`, 'success')
             } else {
               setMembers(prev => prev.map((m, idx) => {
-                if (idx === index) {
+                if (idx === targetIndex) {
                   return { 
                     ...m, 
                     status: 'error', 
@@ -610,7 +611,7 @@ function App() {
             }
           } catch (err: any) {
             setMembers(prev => prev.map((m, idx) => {
-              if (idx === index) {
+              if (idx === targetIndex) {
                 return { 
                   ...m, 
                   status: 'error', 
