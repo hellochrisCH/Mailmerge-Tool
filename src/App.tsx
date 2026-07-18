@@ -98,16 +98,7 @@ function App() {
   const [smtpPass, setSmtpPass] = useState(() => {
     return localStorage.getItem('mf_smtppass') || ''
   })
-  const [smtpHost, setSmtpHost] = useState(() => {
-    return localStorage.getItem('mf_smtphost') || 'smtp.gmail.com'
-  })
-  const [smtpPort, setSmtpPort] = useState(() => {
-    return localStorage.getItem('mf_smtpport') || '465'
-  })
-  const [smtpSecure, setSmtpSecure] = useState(() => {
-    const saved = localStorage.getItem('mf_smtpsecure')
-    return saved === null ? true : saved === 'true'
-  })
+
 
   // Campaign History State - persistent via localStorage
   const [campaignHistory, setCampaignHistory] = useState<CampaignRun[]>(() => {
@@ -167,17 +158,7 @@ function App() {
     localStorage.setItem('mf_smtppass', smtpPass)
   }, [smtpPass])
 
-  useEffect(() => {
-    localStorage.setItem('mf_smtphost', smtpHost)
-  }, [smtpHost])
 
-  useEffect(() => {
-    localStorage.setItem('mf_smtpport', smtpPort)
-  }, [smtpPort])
-
-  useEffect(() => {
-    localStorage.setItem('mf_smtpsecure', String(smtpSecure))
-  }, [smtpSecure])
 
   useEffect(() => {
     localStorage.setItem('mf_campaign_history', JSON.stringify(campaignHistory))
@@ -293,20 +274,7 @@ function App() {
     addLog('HTML-Beispielvorlage geladen.', 'info')
   }
 
-  // Preset loaders for SMTP
-  const applyPreset = (type: 'gmail' | 'outlook') => {
-    if (type === 'gmail') {
-      setSmtpHost('smtp.gmail.com')
-      setSmtpPort('465')
-      setSmtpSecure(true)
-      addLog('Google Gmail SMTP Preset geladen.', 'info')
-    } else if (type === 'outlook') {
-      setSmtpHost('smtp.office365.com')
-      setSmtpPort('587')
-      setSmtpSecure(false)
-      addLog('Outlook / Microsoft 365 SMTP Preset geladen.', 'info')
-    }
-  }
+
 
   // Handle Add Member manually
   const handleAddMember = (e: React.FormEvent) => {
@@ -604,9 +572,6 @@ function App() {
                 senderEmail: senderEmail || smtpUser,
                 smtpUser,
                 smtpPass,
-                smtpHost,
-                smtpPort,
-                smtpSecure,
                 recipientEmail: currentMember.email,
                 subject: renderTemplate(subject, currentMember),
                 body: renderTemplate(body, currentMember),
@@ -622,7 +587,7 @@ function App() {
                   return { 
                     ...m, 
                     status: 'success', 
-                    logDetails: `E-Mail erfolgreich gesendet via SMTP (${smtpHost}).`,
+                    logDetails: 'E-Mail erfolgreich gesendet via Google SMTP.',
                     timestamp: timeString
                   }
                 }
@@ -724,7 +689,7 @@ function App() {
           <span>
             {sendMethod === 'simulated' && 'SMTP Engine: Sandbox Mode'}
             {sendMethod === 'mailto' && 'SMTP Engine: Mailto Redirects'}
-            {sendMethod === 'smtp' && (backendStatus === 'active' ? `SMTP Bridge: Active (${smtpHost})` : 'SMTP Bridge: Offline')}
+            {sendMethod === 'smtp' && (backendStatus === 'active' ? 'SMTP Bridge: Active (Google)' : 'SMTP Bridge: Offline')}
           </span>
         </div>
       </header>
@@ -1461,81 +1426,23 @@ Bob,Johnson,bob@example.com,Treasurer,Joined 2023`}
                     </div>
                   </div>
 
-                  {sendMethod === 'smtp' && (
+                   {sendMethod === 'smtp' && (
                     <div className="panel-card" style={{ padding: '1.25rem', gap: '1rem', background: 'rgba(139, 92, 246, 0.05)', borderColor: 'rgba(139, 92, 246, 0.3)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span className="form-label" style={{ color: 'var(--color-accent-hover)' }}>SMTP Server Einstellungen</span>
-                        <div style={{ display: 'flex', gap: '0.25rem' }}>
-                          <button 
-                            type="button" 
-                            className="btn-secondary" 
-                            style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem', height: 'auto' }}
-                            onClick={() => applyPreset('gmail')}
-                          >
-                            Gmail Preset
-                          </button>
-                          <button 
-                            type="button" 
-                            className="btn-secondary" 
-                            style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem', height: 'auto' }}
-                            onClick={() => applyPreset('outlook')}
-                          >
-                            Outlook Preset
-                          </button>
-                        </div>
-                      </div>
-                      
-                      <div className="form-row">
-                        <div className="form-group">
-                          <label className="form-label" style={{ fontSize: '0.75rem' }}>SMTP Host Server</label>
-                          <input 
-                            type="text" 
-                            className="input-field" 
-                            placeholder="smtp.gmail.com"
-                            value={smtpHost}
-                            onChange={(e) => setSmtpHost(e.target.value)}
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label" style={{ fontSize: '0.75rem' }}>SMTP Port</label>
-                          <input 
-                            type="text" 
-                            className="input-field" 
-                            placeholder="465"
-                            value={smtpPort}
-                            onChange={(e) => setSmtpPort(e.target.value)}
-                          />
-                        </div>
-                      </div>
+                      <span className="form-label" style={{ color: 'var(--color-accent-hover)' }}>Google Gmail SMTP Bridge</span>
 
                       <div className="form-group">
-                        <label className="form-label" style={{ fontSize: '0.75rem' }}>Verbindungstyp</label>
-                        <div className="select-wrapper">
-                          <select 
-                            className="select-field" 
-                            value={String(smtpSecure)}
-                            onChange={(e) => setSmtpSecure(e.target.value === 'true')}
-                            style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
-                          >
-                            <option value="true">SSL / TLS (z.B. Port 465)</option>
-                            <option value="false">STARTTLS / Unencrypted (z.B. Port 587 / Outlook)</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="form-group">
-                        <label className="form-label" style={{ fontSize: '0.75rem' }}>E-Mail-Adresse / Benutzername</label>
+                        <label className="form-label" style={{ fontSize: '0.75rem' }}>Google E-Mail-Adresse</label>
                         <input 
                           type="email" 
                           className="input-field" 
-                          placeholder="aargau@procap.ch"
+                          placeholder="ihre.adresse@gmail.com"
                           value={smtpUser}
                           onChange={(e) => setSmtpUser(e.target.value)}
                         />
                       </div>
 
                       <div className="form-group">
-                        <label className="form-label" style={{ fontSize: '0.75rem' }}>Passwort / App-Passwort</label>
+                        <label className="form-label" style={{ fontSize: '0.75rem' }}>Google App-Passwort</label>
                         <input 
                           type="password" 
                           className="input-field" 
@@ -1544,7 +1451,7 @@ Bob,Johnson,bob@example.com,Treasurer,Joined 2023`}
                           onChange={(e) => setSmtpPass(e.target.value)}
                         />
                         <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: '1.3' }}>
-                          Hinweis für Outlook/Office 365: Falls Multi-Faktor-Authentifizierung (MFA) aktiv ist, müssen Sie im Microsoft-Konto ein <strong>App-Passwort</strong> generieren.
+                          Wichtig: Verwenden Sie Ihr 16-stelliges <strong>App-Passwort</strong>, das Sie in Ihrem Google-Konto unter "Sicherheit" generiert haben.
                         </span>
                       </div>
 

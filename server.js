@@ -24,9 +24,6 @@ app.post('/api/send-email', async (req, res) => {
     senderEmail, 
     smtpUser, 
     smtpPass, 
-    smtpHost,
-    smtpPort,
-    smtpSecure,
     recipientEmail,
     subject,
     body,
@@ -37,7 +34,7 @@ app.post('/api/send-email', async (req, res) => {
   if (!smtpUser || !smtpPass) {
     return res.status(400).json({ 
       success: false, 
-      error: 'Missing SMTP Username or Password credentials.' 
+      error: 'Missing Google SMTP user or App Password credentials.' 
     });
   }
 
@@ -49,25 +46,18 @@ app.post('/api/send-email', async (req, res) => {
   }
 
   try {
-    const isSecureConnection = smtpSecure === true || smtpSecure === 'true';
-    
-    // Configure customized SMTP transporter
+    // Configure standard Gmail SMTP transporter
     const transporter = nodemailer.createTransport({
-      host: smtpHost || 'smtp.gmail.com',
-      port: parseInt(smtpPort) || 465,
-      secure: isSecureConnection, // true for port 465 SSL, false for port 587 STARTTLS
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
       auth: {
         user: smtpUser,
         pass: smtpPass
       },
       connectionTimeout: 8000, // Timeout after 8 seconds of connection attempt
       greetingTimeout: 8000,   // Timeout after 8 seconds of waiting for SMTP greeting
-      socketTimeout: 10000,    // Timeout after 10 seconds of socket inactivity
-      tls: {
-        // Microsoft 365 / custom SMTP servers sometimes require tls configuration
-        ciphers: 'SSLv3',
-        rejectUnauthorized: false
-      }
+      socketTimeout: 10000     // Timeout after 10 seconds of socket inactivity
     });
 
     // Verify connections before sending
