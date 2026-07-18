@@ -41,6 +41,10 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const [newMember, setNewMember] = useState({ first_name: '', last_name: '', email: '', role: 'General Member', custom: '' })
   
+  // Inline Editing State
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({ first_name: '', last_name: '', email: '', role: '', custom: '' })
+
   // CSV Import State
   const [csvText, setCsvText] = useState('')
   const [csvError, setCsvError] = useState('')
@@ -301,6 +305,39 @@ function App() {
   const handleDeleteMember = (id: string) => {
     setMembers(prev => prev.filter(m => m.id !== id))
     addLog('Removed member from campaign list.', 'info')
+  }
+
+  // Inline Editing Functions
+  const startEditing = (member: Member) => {
+    setEditingId(member.id)
+    setEditForm({
+      first_name: member.first_name,
+      last_name: member.last_name,
+      email: member.email,
+      role: member.role,
+      custom: member.custom
+    })
+  }
+
+  const cancelEditing = () => {
+    setEditingId(null)
+  }
+
+  const saveEditing = (id: string) => {
+    if (!editForm.first_name || !editForm.email) {
+      alert('Vorname und E-Mail sind Pflichtfelder.')
+      return
+    }
+    setMembers(prev => prev.map(m => m.id === id ? {
+      ...m,
+      first_name: editForm.first_name,
+      last_name: editForm.last_name,
+      email: editForm.email,
+      role: editForm.role,
+      custom: editForm.custom
+    } : m))
+    setEditingId(null)
+    addLog(`Empfänger ${editForm.first_name} erfolgreich aktualisiert.`, 'info')
   }
 
   // Parse CSV
@@ -902,35 +939,130 @@ Bob,Johnson,bob@example.com,Treasurer,Joined 2023`}
                         </td>
                       </tr>
                     ) : (
-                      filteredMembers.map(member => (
-                        <tr key={member.id}>
-                          <td style={{ fontWeight: 500 }}>{member.first_name} {member.last_name}</td>
-                          <td style={{ color: 'var(--text-secondary)' }}>{member.email}</td>
-                          <td>
-                            <span className="role-tag">{member.role}</span>
-                          </td>
-                          <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{member.custom}</td>
-                          <td>
-                            <span className={`badge ${member.status}`} title={member.logDetails}>
-                              {member.status === 'success' && '✓ Sent'}
-                              {member.status === 'error' && '✗ Failed'}
-                              {member.status === 'pending' && 'Pending'}
-                            </span>
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            <button 
-                              onClick={() => handleDeleteMember(member.id)} 
-                              style={{ background: 'transparent', border: 'none', color: 'var(--color-error)', cursor: 'pointer' }}
-                              title="Delete recipient"
-                            >
-                              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                <polyline points="3 6 5 6 21 6"></polyline>
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                              </svg>
-                            </button>
-                          </td>
-                        </tr>
-                      ))
+                      filteredMembers.map(member => {
+                        const isEditing = editingId === member.id;
+                        return (
+                          <tr key={member.id}>
+                            {isEditing ? (
+                              <>
+                                <td>
+                                  <div style={{ display: 'flex', gap: '0.35rem' }}>
+                                    <input 
+                                      type="text" 
+                                      className="input-field" 
+                                      style={{ padding: '0.35rem 0.5rem', fontSize: '0.85rem', width: '90px' }}
+                                      value={editForm.first_name}
+                                      onChange={(e) => setEditForm(prev => ({ ...prev, first_name: e.target.value }))}
+                                    />
+                                    <input 
+                                      type="text" 
+                                      className="input-field" 
+                                      style={{ padding: '0.35rem 0.5rem', fontSize: '0.85rem', width: '90px' }}
+                                      value={editForm.last_name}
+                                      onChange={(e) => setEditForm(prev => ({ ...prev, last_name: e.target.value }))}
+                                    />
+                                  </div>
+                                </td>
+                                <td>
+                                  <input 
+                                    type="email" 
+                                    className="input-field" 
+                                    style={{ padding: '0.35rem 0.5rem', fontSize: '0.85rem', width: '180px' }}
+                                    value={editForm.email}
+                                    onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+                                  />
+                                </td>
+                                <td>
+                                  <input 
+                                    type="text" 
+                                    className="input-field" 
+                                    style={{ padding: '0.35rem 0.5rem', fontSize: '0.85rem', width: '120px' }}
+                                    value={editForm.role}
+                                    onChange={(e) => setEditForm(prev => ({ ...prev, role: e.target.value }))}
+                                  />
+                                </td>
+                                <td>
+                                  <input 
+                                    type="text" 
+                                    className="input-field" 
+                                    style={{ padding: '0.35rem 0.5rem', fontSize: '0.85rem', width: '120px' }}
+                                    value={editForm.custom}
+                                    onChange={(e) => setEditForm(prev => ({ ...prev, custom: e.target.value }))}
+                                  />
+                                </td>
+                                <td>
+                                  <span className={`badge ${member.status}`}>
+                                    Pending (Edit)
+                                  </span>
+                                </td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                                    <button 
+                                      onClick={() => saveEditing(member.id)} 
+                                      style={{ background: 'transparent', border: 'none', color: 'var(--color-success)', cursor: 'pointer' }}
+                                      title="Speichern"
+                                    >
+                                      <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                      </svg>
+                                    </button>
+                                    <button 
+                                      onClick={cancelEditing} 
+                                      style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                                      title="Abbrechen"
+                                    >
+                                      <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                      </svg>
+                                    </button>
+                                  </div>
+                                </td>
+                              </>
+                            ) : (
+                              <>
+                                <td style={{ fontWeight: 500 }}>{member.first_name} {member.last_name}</td>
+                                <td style={{ color: 'var(--text-secondary)' }}>{member.email}</td>
+                                <td>
+                                  <span className="role-tag">{member.role}</span>
+                                </td>
+                                <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{member.custom}</td>
+                                <td>
+                                  <span className={`badge ${member.status}`} title={member.logDetails}>
+                                    {member.status === 'success' && '✓ Sent'}
+                                    {member.status === 'error' && '✗ Failed'}
+                                    {member.status === 'pending' && 'Pending'}
+                                  </span>
+                                </td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+                                    <button 
+                                      onClick={() => startEditing(member)} 
+                                      style={{ background: 'transparent', border: 'none', color: 'var(--color-accent-hover)', cursor: 'pointer' }}
+                                      title="Empfänger bearbeiten"
+                                    >
+                                      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                        <path d="M12 20h9"></path>
+                                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                                      </svg>
+                                    </button>
+                                    <button 
+                                      onClick={() => handleDeleteMember(member.id)} 
+                                      style={{ background: 'transparent', border: 'none', color: 'var(--color-error)', cursor: 'pointer' }}
+                                      title="Empfänger löschen"
+                                    >
+                                      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                      </svg>
+                                    </button>
+                                  </div>
+                                </td>
+                              </>
+                            )}
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
